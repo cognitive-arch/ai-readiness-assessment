@@ -29,7 +29,7 @@ AI-Readiness-Assessment/
 
 ```bash
 # Clone the repo
-git clone https://github.com/yourorg/AI-Readiness-Assessment.git
+git clone https://github.com/cognitive-arch/ai-readiness-assessment.git
 cd AI-Readiness-Assessment
 
 # Start the full stack: MongoDB + API + Frontend

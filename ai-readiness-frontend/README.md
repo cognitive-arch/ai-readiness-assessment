@@ -1,6 +1,6 @@
 # AI Readiness Assessment Tool
 
-A production-ready frontend for assessing organizational AI readiness across 6 domains with 72 weighted questions.
+A production-ready frontend for assessing organizational AI readiness across 6 domains with weighted questions.
 
 ## Quick Start
 
@@ -56,7 +56,7 @@ public/
 - **State**: React Context + localStorage (no external state library required)
 - **Scoring**: Full client-side fallback when no backend configured
 - **Charts**: Recharts for radar visualization
-- **Backend API**: Optional — `src/lib/api.ts` handles all backend calls with graceful fallback
+- **Backend API**:  `src/lib/api.ts` handles all backend calls with graceful fallback
 
 ## Scoring Algorithm
 
@@ -66,13 +66,13 @@ public/
 
 ## Maturity Levels
 
-| Score | Level |
-|-------|-------|
+| Score | Level                  |
+| ----- | ---------------------- |
 | < 40  | Foundational Risk Zone |
-| < 60  | AI Emerging |
-| < 75  | AI Structured |
-| < 90  | AI Advanced |
-| ≥ 90  | AI-Native |
+| < 60  | AI Emerging            |
+| < 75  | AI Structured          |
+| < 90  | AI Advanced            |
+| ≥ 90 | AI-Native              |
 
 ## Risk Flags
 
