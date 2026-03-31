@@ -1,6 +1,5 @@
-# ─────────────────────────────────────────────────────────────────────────────
+
 # Stage 1 — deps: install only production + build dependencies
-# ─────────────────────────────────────────────────────────────────────────────
 FROM node:20-alpine AS deps
 
 # libc6-compat is needed for some native npm packages on Alpine
@@ -14,9 +13,9 @@ COPY package.json package-lock.json* ./
 # Clean install (respects lockfile, skips devDeps during prod installs later)
 RUN npm ci
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # Stage 2 — builder: compile the Next.js application
-# ─────────────────────────────────────────────────────────────────────────────
+
 FROM node:20-alpine AS builder
 
 WORKDIR /app
@@ -40,9 +39,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Build the application — outputs to .next/
 RUN npm run build
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # Stage 3 — runner: minimal production image
-# ─────────────────────────────────────────────────────────────────────────────
+
 FROM node:20-alpine AS runner
 
 WORKDIR /app
