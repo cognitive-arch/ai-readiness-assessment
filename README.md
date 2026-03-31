@@ -7,7 +7,6 @@ A full-stack enterprise tool for benchmarking organizational AI readiness. Asses
 
 <img width="1536" height="1024" alt="poster_image" src="https://github.com/user-attachments/assets/ce147f9c-0aed-400b-bbf2-b8f94c0c930d" />
 
-
 ---
 
 ## Repository Structure
@@ -23,7 +22,14 @@ AI-Readiness-Assessment/
 - **[Frontend Documentation](./ai-readiness-frontend/README.md)** — Next.js setup, component architecture, scoring algorithm
 - **[Backend Documentation](./ai-readiness-backend/README.md)** — Go API reference, MongoDB schema, deployment guide
 
----
+## What's Coming Next
+
+This is just phase 1. Planned enhancements included:
+
+* Industry-specific assessment overlays (Healthcare, Retail, OTT/Media, etc.)
+* AI-native roadmap builder
+* Intelligent recommendation engine (Industry-specific)
+* Implementation Consultant (AI-baked)
 
 ## Quick Start
 
