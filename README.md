@@ -155,7 +155,7 @@ See [`ai-readiness-backend/.env.example`](./ai-readiness-backend/.env.example) f
 
 ## Contributing
 
-- **[Developer Runbook Documentation](./ai-readiness-backend/README.md)** — Operational reference for the backend developers.
+- **[Developer Runbook Documentation](./ai-readiness-backend/docs/runbook.md)** — Operational reference for the backend developers.
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/your-feature`
