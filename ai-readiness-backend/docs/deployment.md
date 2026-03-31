@@ -32,7 +32,7 @@ kubectl create namespace ai-readiness
 
 kubectl create secret generic ai-readiness-secrets \
   --namespace ai-readiness \
-  --from-literal=MONGO_URI="mongodb+srv://user:password@cluster.mongodb.net/ai_readiness?retryWrites=true&w=majority"
+  --from-literal=MONGO_URI="mongodb://localhost:27017"
 ```
 
 ### 2. Apply manifests
