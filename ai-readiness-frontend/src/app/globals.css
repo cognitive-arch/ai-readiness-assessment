@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans:    'DM Sans', sans-serif;
+  --font-mono:    'DM Mono', monospace;
+  --font-display: 'Syne', sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+/* .font-display is used throughout page.tsx and Navbar.tsx */
+.font-display {
+  font-family: var(--font-display), var(--font-sans), sans-serif;
+}
+
+/* ── Landing page animations ──────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fu  { animation: fadeUp .75s cubic-bezier(.22,1,.36,1) both; }
+.d1  { animation-delay: .08s; }
+.d2  { animation-delay: .20s; }
+.d3  { animation-delay: .32s; }
+.d4  { animation-delay: .44s; }
+.d5  { animation-delay: .58s; }
+
+.hero-mask::after {
+  content: ''; position: absolute; inset: 0;
+  pointer-events: none; z-index: 1;
+  background: radial-gradient(
+    ellipse 55% 52% at 50% 50%,
+    rgba(8,13,26,0.92) 0%,
+    rgba(8,13,26,0.75) 30%,
+    rgba(8,13,26,0.30) 60%,
+    transparent 100%
+  );
+}
+
+.text-grad {
+  background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #34d399 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@keyframes pdot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: .35; transform: scale(.65); }
+}
+.pdot { animation: pdot 2s ease-in-out infinite; }
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+.btn-sh {
+  background: linear-gradient(90deg, #1d4ed8 0%, #3b82f6 40%, #60a5fa 50%, #3b82f6 60%, #1d4ed8 100%);
+  background-size: 200% auto;
+  animation: shimmer 3s linear infinite;
+}
+.btn-sh:hover { animation-duration: 1s; }
+
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(56,189,248,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56,189,248,.035) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+.deliv-card {
+  transition: transform .22s cubic-bezier(.22,1,.36,1), box-shadow .22s;
+  position: relative;
+  overflow: hidden;
+}
+.deliv-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, var(--cg) 0%, transparent 55%);
+  opacity: 0; transition: opacity .22s; border-radius: inherit;
+}
+.deliv-card:hover { transform: translateY(-5px); box-shadow: 0 20px 48px -10px var(--cs); }
+.deliv-card:hover::before { opacity: 1; }
+
+@keyframes bounce2 {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-5px); }
+}
+.bounce { animation: bounce2 2.2s ease-in-out infinite; }

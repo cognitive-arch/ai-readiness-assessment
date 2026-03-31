@@ -1,0 +1,113 @@
+# monitoring/alerts.yml
+groups:
+  - name: ai-readiness-api
+    interval: 30s
+    rules:
+
+      # ── Availability ──────────────────────────────────
+      - alert: APIDown
+        expr: up{job="ai-readiness"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "AI Readiness API is down"
+          description: "{{ $labels.instance }} has been unreachable for >1 minute."
+          runbook: "https://github.com/yourorg/ai-readiness-backend/blob/main/docs/runbook.md#troubleshooting"
+
+      # ── Error rate ────────────────────────────────────
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(aireadiness_http_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(aireadiness_http_requests_total[5m]))
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High 5xx error rate (>5%)"
+          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes."
+
+      - alert: CriticalErrorRate
+        expr: |
+          (
+            sum(rate(aireadiness_http_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(aireadiness_http_requests_total[5m]))
+          ) > 0.20
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Critical 5xx error rate (>20%)"
+          description: "Error rate is {{ $value | humanizePercentage }}. Immediate investigation required."
+
+      # ── Latency ───────────────────────────────────────
+      - alert: HighP99Latency
+        expr: |
+          histogram_quantile(0.99,
+            sum by(le) (rate(aireadiness_http_request_duration_seconds_bucket[5m]))
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "p99 request latency > 2s"
+          description: "p99 latency is {{ $value | humanizeDuration }} — SLO is 2s."
+
+      - alert: ScoringEngineLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(aireadiness_scoring_duration_seconds_bucket[5m])
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Scoring engine p95 > 100ms"
+          description: "Scoring p95 is {{ $value | humanizeDuration }}. Expected <10ms."
+
+      # ── MongoDB ───────────────────────────────────────
+      - alert: MongoSlowOperations
+        expr: |
+          histogram_quantile(0.95,
+            sum by(operation, le) (rate(aireadiness_mongo_operation_duration_seconds_bucket[5m]))
+          ) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "MongoDB p95 latency > 500ms"
+          description: "Operation {{ $labels.operation }} p95 is {{ $value | humanizeDuration }}."
+
+      # ── PDF exports ───────────────────────────────────
+      - alert: PDFExportFailures
+        expr: |
+          rate(aireadiness_pdf_exports_total{outcome="failure"}[10m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "PDF export failures detected"
+          description: "{{ $value | humanize }} PDF export failures/s over last 10 minutes."
+
+      # ── Business metrics ──────────────────────────────
+      - alert: NoAssessmentsCreated
+        expr: |
+          increase(aireadiness_assessments_created_total[1h]) == 0
+        for: 0m
+        labels:
+          severity: info
+          team: product
+        annotations:
+          summary: "No assessments created in the last hour"
+          description: "This may indicate a traffic drop or frontend issue."

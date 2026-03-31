@@ -1,0 +1,140 @@
+
+# AI-Readiness-Assessment — root .gitignore
+# Covers: ai-readiness-backend (Go) + ai-readiness-frontend (Next.js)
+
+
+
+
+# ENVIRONMENT & SECRETS  (never commit these)
+
+.env
+.env.local
+.env.*.local
+.env.production
+!.env.example
+
+
+
+# GO BACKEND  (ai-readiness-backend/)
+
+
+# Compiled binaries
+ai-readiness-backend/bin/
+ai-readiness-backend/tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test & coverage
+coverage.out
+coverage.html
+*.prof
+*.test
+
+# Go workspace (local multi-module setups)
+go.work
+go.work.sum
+
+# Hot-reload (air)
+ai-readiness-backend/tmp/
+
+# Linter cache
+ai-readiness-backend/.golangci-lint/
+
+# PDF temp files generated at runtime
+ai-readiness-backend/tmp/ai-readiness-pdfs/
+
+# Profiling output
+cpu.prof
+mem.prof
+trace.out
+
+# Build cache
+ai-readiness-backend/.cache/
+
+# Kubernetes secrets (generated locally, never committed)
+ai-readiness-backend/k8s/secrets/
+
+
+
+# NEXT.JS FRONTEND  (ai-readiness-frontend/)
+
+
+# Build output
+ai-readiness-frontend/.next/
+ai-readiness-frontend/out/
+
+# Dependencies
+ai-readiness-frontend/node_modules/
+
+# Next.js cache
+ai-readiness-frontend/.next/cache/
+
+# TypeScript build info
+ai-readiness-frontend/*.tsbuildinfo
+ai-readiness-frontend/next-env.d.ts
+
+# Vercel deployment
+ai-readiness-frontend/.vercel/
+
+
+
+# DOCKER
+
+
+# Local compose overrides (developer-specific, not shared)
+docker-compose.override.yml
+
+
+
+# IDE & EDITORS
+
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-workspace
+*.sublime-project
+
+
+
+# OPERATING SYSTEM
+
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V3
+.Spotlight-V7
+.Trashes
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+
+
+# LOGS & RUNTIME
+
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+
+
+# TESTING & CI
+
+/coverage/
+.nyc_output/
+
+
+# MISC
+
+*.bak
+*.tmp
+*.orig
+.cache/

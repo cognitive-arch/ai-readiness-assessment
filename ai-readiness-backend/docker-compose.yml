@@ -1,0 +1,70 @@
+version: "3.9"
+
+services:
+  # ── MongoDB ──────────────────────────────────────────────────
+  mongo:
+    image: mongo:7
+    container_name: ai-readiness-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: ai_readiness
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/init.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Mongo Express (optional UI) ──────────────────────────────
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: ai-readiness-mongo-express
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/
+      ME_CONFIG_BASICAUTH: "false"
+    profiles:
+      - debug
+
+  # ── Backend API ──────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-readiness-api
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      ENV: development
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB: ai_readiness
+      CORS_ORIGINS: "http://localhost:3000,http://localhost:3001"
+      RATE_LIMIT_RPM: "120"
+      PDF_TMP_DIR: /tmp/ai-readiness-pdfs
+      LOG_LEVEL: info
+      QUESTION_BANK_PATH: /app/question-bank-v1.json
+    volumes:
+      - pdf_tmp:/tmp/ai-readiness-pdfs
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  mongo_data:
+  pdf_tmp:

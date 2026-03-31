@@ -1,0 +1,155 @@
+version: "3.9"
+
+# docker-compose.prod.yml
+# Full production-like stack:
+#   MongoDB → API → Prometheus → Grafana → AlertManager
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d
+#   Grafana:      http://localhost:3001  (admin/admin)
+#   Prometheus:   http://localhost:9090
+#   AlertManager: http://localhost:9093
+#   API:          http://localhost:8080
+#   Mongo Express:http://localhost:8081
+
+services:
+
+  # ── MongoDB ──────────────────────────────────────────
+  mongo:
+    image: mongo:7
+    container_name: ai-readiness-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/init.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options: { max-size: "10m", max-file: "3" }
+
+  # ── API ───────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: "${VERSION:-dev}"
+        BUILD_TIME: "${BUILD_TIME:-unknown}"
+    container_name: ai-readiness-api
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      ENV: production
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB: ai_readiness
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3000}"
+      RATE_LIMIT_RPM: "120"
+      PDF_TMP_DIR: /tmp/ai-readiness-pdfs
+      LOG_LEVEL: info
+      QUESTION_BANK_PATH: /app/question-bank-v1.json
+    volumes:
+      - pdf_tmp:/tmp/ai-readiness-pdfs
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options: { max-size: "50m", max-file: "5" }
+
+  # ── Prometheus ───────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: ai-readiness-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.enable-lifecycle"
+      - "--web.enable-admin-api"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── Grafana ───────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: ai-readiness-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_PASSWORD:-admin}"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/ai-readiness.json
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana-dashboard.json:/var/lib/grafana/dashboards/ai-readiness.json:ro
+      - ./monitoring/grafana-provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── AlertManager ─────────────────────────────────────
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: ai-readiness-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+
+  # ── Mongo Express (optional debug UI) ────────────────
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: ai-readiness-mongo-express
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/
+      ME_CONFIG_BASICAUTH: "false"
+    profiles:
+      - debug
+
+volumes:
+  mongo_data:
+  pdf_tmp:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:

@@ -1,0 +1,565 @@
+openapi: 3.0.3
+
+info:
+  title: AI Readiness Assessment API
+  description: |
+    REST API for the AI Readiness Assessment Tool.
+    Assessments are scored across 6 domains (Strategic, Technology, Data, Organization, Security, UseCase)
+    using 72 weighted questions to produce a maturity level and prioritized recommendations.
+  version: "1.0.0"
+  contact:
+    name: AI Readiness Team
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+  - url: https://api.your-domain.com
+    description: Production
+
+tags:
+  - name: health
+    description: Service health
+  - name: assessment
+    description: Assessment lifecycle management
+  - name: questions
+    description: Question bank
+
+# ─────────────────────────────────────────────────────
+# Paths
+# ─────────────────────────────────────────────────────
+
+paths:
+
+  /health:
+    get:
+      tags: [health]
+      summary: Health check
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: MongoDB unreachable
+
+  /api/questions:
+    get:
+      tags: [questions]
+      summary: Get full question bank
+      operationId: getQuestions
+      responses:
+        "200":
+          description: Question bank returned
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/QuestionBank"
+
+  /api/assessment:
+    get:
+      tags: [assessment]
+      summary: List assessments (paginated)
+      operationId: listAssessments
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        "200":
+          description: Paginated list of assessments
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Assessment"
+                      meta:
+                        $ref: "#/components/schemas/PaginationMeta"
+
+    post:
+      tags: [assessment]
+      summary: Create a new assessment
+      operationId: createAssessment
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAssessmentRequest"
+      responses:
+        "201":
+          description: Assessment created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Assessment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/assessment/{id}:
+    parameters:
+      - $ref: "#/components/parameters/AssessmentID"
+
+    get:
+      tags: [assessment]
+      summary: Get an assessment by ID
+      operationId: getAssessment
+      responses:
+        "200":
+          description: Assessment found
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Assessment"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [assessment]
+      summary: Delete an assessment permanently
+      operationId: deleteAssessment
+      responses:
+        "200":
+          description: Assessment deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessEnvelope"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/assessment/{id}/answers:
+    parameters:
+      - $ref: "#/components/parameters/AssessmentID"
+
+    put:
+      tags: [assessment]
+      summary: Bulk save answers (field-level merge)
+      operationId: saveAnswers
+      description: |
+        Merges the provided answers into the assessment's existing answers.
+        Answers not included in this request are preserved unchanged.
+        Scores must be integers 1–5. Question IDs are validated against the question bank.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveAnswersRequest"
+            example:
+              answers:
+                s1:
+                  score: 4
+                  comment: "Documented strategy exists in Confluence"
+                s2:
+                  score: 3
+                t1:
+                  score: 5
+                  comment: "SageMaker + MLflow deployed"
+      responses:
+        "200":
+          description: Answers saved, updated assessment returned
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Assessment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/assessment/{id}/compute:
+    parameters:
+      - $ref: "#/components/parameters/AssessmentID"
+
+    post:
+      tags: [assessment]
+      summary: Compute assessment results
+      operationId: computeResults
+      description: |
+        Runs the scoring engine against all saved answers.
+        Stores the computed result in the assessment and returns the updated document.
+        Can be called multiple times — each call recomputes from current answers.
+      responses:
+        "200":
+          description: Results computed and stored
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Assessment"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/assessment/{id}/results:
+    parameters:
+      - $ref: "#/components/parameters/AssessmentID"
+
+    get:
+      tags: [assessment]
+      summary: Get computed results
+      operationId: getResults
+      description: Returns only the result object. Returns 409 if results not yet computed.
+      responses:
+        "200":
+          description: Computed result returned
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Result"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Results not yet computed — call POST /compute first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /api/assessment/{id}/export/pdf:
+    parameters:
+      - $ref: "#/components/parameters/AssessmentID"
+
+    get:
+      tags: [assessment]
+      summary: Export PDF report
+      operationId: exportPDF
+      description: Streams a PDF report. Requires results to be computed first.
+      responses:
+        "200":
+          description: PDF file stream
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="ai-readiness-6643f1a2c3d4e5f6a7b8c9d0.pdf"'
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Results not yet computed — call POST /compute first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+# ─────────────────────────────────────────────────────
+# Components
+# ─────────────────────────────────────────────────────
+
+components:
+
+  parameters:
+    AssessmentID:
+      name: id
+      in: path
+      required: true
+      description: MongoDB ObjectID hex string (24 characters)
+      schema:
+        type: string
+        pattern: "^[0-9a-f]{24}$"
+        example: "6643f1a2c3d4e5f6a7b8c9d0"
+
+  responses:
+    BadRequest:
+      description: Invalid request body or parameters
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    NotFound:
+      description: Assessment not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+
+  schemas:
+
+    # ── Envelopes ──────────────────────────────────
+    SuccessEnvelope:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          example: true
+
+    ErrorEnvelope:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: "assessment not found"
+
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 42
+        limit:
+          type: integer
+          example: 20
+        offset:
+          type: integer
+          example: 0
+
+    # ── Health ─────────────────────────────────────
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        mongo:
+          type: boolean
+          example: true
+        time:
+          type: string
+          format: date-time
+
+    # ── Question bank ──────────────────────────────
+    Question:
+      type: object
+      required: [id, domain, text, weight, isCritical]
+      properties:
+        id:
+          type: string
+          example: s1
+        domain:
+          type: string
+          enum: [Strategic, Technology, Data, Organization, Security, UseCase]
+        text:
+          type: string
+          example: "Does your organization have a documented AI strategy?"
+        weight:
+          type: integer
+          minimum: 1
+          maximum: 5
+        isCritical:
+          type: boolean
+        impact:
+          type: integer
+
+    QuestionBank:
+      type: object
+      properties:
+        domains:
+          type: array
+          items:
+            type: string
+        questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Question"
+
+    # ── Answer ─────────────────────────────────────
+    Answer:
+      type: object
+      properties:
+        score:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: "1=Not Present, 2=Ad-hoc, 3=Defined, 4=Managed, 5=Optimized"
+          example: 4
+        comment:
+          type: string
+          example: "Documented strategy exists in Confluence"
+
+    # ── Assessment ─────────────────────────────────
+    Assessment:
+      type: object
+      properties:
+        assessmentId:
+          type: string
+          example: "6643f1a2c3d4e5f6a7b8c9d0"
+        status:
+          type: string
+          enum: [draft, in_progress, completed, computed]
+        answers:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/Answer"
+        result:
+          $ref: "#/components/schemas/Result"
+        clientRef:
+          type: string
+          example: "acme-corp"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ── Result ─────────────────────────────────────
+    DomainScore:
+      type: object
+      properties:
+        score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          example: 72.5
+        answered:
+          type: integer
+          example: 10
+        total:
+          type: integer
+          example: 12
+
+    Recommendation:
+      type: object
+      properties:
+        domain:
+          type: string
+          example: Data
+        text:
+          type: string
+          example: "Implement a unified data catalog with lineage tracking"
+        priority:
+          type: string
+          enum: [Critical, High, Medium]
+        phase:
+          type: string
+          enum: [Phase 1, Phase 2, Phase 3]
+
+    Result:
+      type: object
+      properties:
+        overall:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          example: 63.42
+        domainScores:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/DomainScore"
+        maturity:
+          type: string
+          enum:
+            - Foundational Risk Zone
+            - AI Emerging
+            - AI Structured
+            - AI Advanced
+            - AI-Native
+          example: "AI Structured"
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          example: 94.44
+        risks:
+          type: array
+          items:
+            type: string
+            enum:
+              - CRITICAL_GAPS
+              - DATA_HIGH_RISK
+              - SECURITY_HIGH_RISK
+              - MATURITY_CAPPED
+          example: ["CRITICAL_GAPS", "DATA_HIGH_RISK"]
+        recommendations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Recommendation"
+        totalAnswered:
+          type: integer
+          example: 68
+        totalQ:
+          type: integer
+          example: 72
+        computedAt:
+          type: string
+          format: date-time
+
+    # ── Requests ───────────────────────────────────
+    CreateAssessmentRequest:
+      type: object
+      properties:
+        client_ref:
+          type: string
+          description: Optional identifier linking this assessment to an organization or user
+          example: "acme-corp"
+
+    SaveAnswersRequest:
+      type: object
+      required: [answers]
+      properties:
+        answers:
+          type: object
+          minProperties: 1
+          additionalProperties:
+            $ref: "#/components/schemas/Answer"
+          description: |
+            Map of question ID → answer. Merged with existing answers (not a full replace).
+            At least one answer required.
