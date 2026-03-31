@@ -5,6 +5,8 @@ A full-stack enterprise tool for benchmarking organizational AI readiness. Asses
 > **Live at:** [aitransformation.app
 > ](https://aitransformation.app)
 
+<img width="1536" height="1024" alt="poster_image" src="https://github.com/user-attachments/assets/ce147f9c-0aed-400b-bbf2-b8f94c0c930d" />
+
 
 ---
 
