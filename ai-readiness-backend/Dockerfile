@@ -14,6 +14,8 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-w -s" -o /app/bin/server ./cmd/server
 
+RUN mkdir -p /tmp/ai-readiness-pdfs && chown -R 65534:65534 /tmp/ai-readiness-pdfs
+
 # ── Runtime stage ─────────────────────────────────────────────
 FROM scratch
 
@@ -28,8 +30,11 @@ COPY --from=builder /app/bin/server ./server
 # Copy question bank (required at runtime)
 COPY question-bank-v1.json ./question-bank-v1.json
 
+#Copy .env file (required at runtime)
+COPY .env .env
+
 # PDF temp dir — writable
-RUN mkdir -p /tmp/ai-readiness-pdfs
+COPY --from=builder /tmp/ai-readiness-pdfs /tmp/ai-readiness-pdfs
 
 EXPOSE 8080
 

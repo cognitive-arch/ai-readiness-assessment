@@ -28,12 +28,12 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	cfg := &Config{
-		Port:        getEnv("PORT", "8080"),
-		Env:         getEnv("ENV", "development"),
-		MongoURI:    getEnv("MONGO_URI", ""),
-		MongoDB:     getEnv("MONGO_DB", "ai_readiness"),
-		PDFTmpDir:   getEnv("PDF_TMP_DIR", "/tmp/ai-readiness-pdfs"),
-		LogLevel:    getEnv("LOG_LEVEL", "info"),
+		Port:      getEnv("PORT", "8080"),
+		Env:       getEnv("ENV", "development"),
+		MongoURI:  getEnv("MONGO_URI", ""),
+		MongoDB:   getEnv("MONGO_DB", "ai_readiness"),
+		PDFTmpDir: getEnv("PDF_TMP_DIR", "/tmp/ai-readiness-pdfs"),
+		LogLevel:  getEnv("LOG_LEVEL", "info"),
 	}
 
 	if cfg.MongoURI == "" {
