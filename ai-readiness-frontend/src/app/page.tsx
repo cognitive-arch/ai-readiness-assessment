@@ -2,117 +2,124 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 
-// Nodes pushed to perimeter so text center stays clear
+// ─── Canvas: nodes at extreme perimeter, only shown on sm+ screens ───────────
+// On mobile the canvas is hidden via CSS and replaced with pure CSS glows,
+// which completely eliminates the node-over-text overlap problem.
 const DOMAIN_NODES = [
-  { label: 'Strategic',    color: '#3b82f6', x: 0.50, y: 0.06 },
-  { label: 'Technology',   color: '#8b5cf6', x: 0.90, y: 0.30 },
-  { label: 'Data',         color: '#06b6d4', x: 0.84, y: 0.80 },
-  { label: 'Organization', color: '#f59e0b', x: 0.16, y: 0.80 },
-  { label: 'Security',     color: '#ef4444', x: 0.10, y: 0.30 },
-  { label: 'UseCase',      color: '#10b981', x: 0.50, y: 0.94 },
+  { label: 'Strategic',    color: '#3b82f6', x: 0.50, y: 0.04 },
+  { label: 'Technology',   color: '#8b5cf6', x: 0.96, y: 0.26 },
+  { label: 'Data',         color: '#06b6d4', x: 0.93, y: 0.82 },
+  { label: 'Organization', color: '#f59e0b', x: 0.07, y: 0.82 },
+  { label: 'Security',     color: '#ef4444', x: 0.04, y: 0.26 },
+  { label: 'UseCase',      color: '#10b981', x: 0.50, y: 0.96 },
 ];
 
 const EDGES: [number, number][] = [
   [0,1],[0,4],[1,2],[2,3],[3,4],[4,5],[5,2],[5,1],[0,5],[3,1],
 ];
 
-interface CNode { x:number;y:number;baseX:number;baseY:number;r:number;color:string;label:string;phase:number; }
-interface Pulse  { edge:[number,number];t:number;speed:number;color:string; }
+interface CNode { x:number; y:number; baseX:number; baseY:number; r:number; color:string; label:string; phase:number; }
+interface Pulse  { edge:[number,number]; t:number; speed:number; color:string; }
 
 function NeuralCanvas() {
-  const cvs = useRef<HTMLCanvasElement>(null);
-  const raf = useRef<number>(0);
-  const nodes = useRef<CNode[]>([]);
-  const pulses = useRef<Pulse[]>([]);
+  const cvs  = useRef<HTMLCanvasElement>(null);
+  const raf  = useRef<number>(0);
+  const nds  = useRef<CNode[]>([]);
+  const pls  = useRef<Pulse[]>([]);
 
   useEffect(() => {
     const c = cvs.current; if (!c) return;
     const ctx = c.getContext('2d')!;
 
     const resize = () => {
-      c.width = c.offsetWidth; c.height = c.offsetHeight;
-      DOMAIN_NODES.forEach((d,i) => {
-        if (nodes.current[i]) { nodes.current[i].baseX = d.x*c.width; nodes.current[i].baseY = d.y*c.height; }
+      c.width  = c.offsetWidth;
+      c.height = c.offsetHeight;
+      DOMAIN_NODES.forEach((d, i) => {
+        if (nds.current[i]) {
+          nds.current[i].baseX = d.x * c.width;
+          nds.current[i].baseY = d.y * c.height;
+        }
       });
     };
     resize();
     window.addEventListener('resize', resize);
 
-    nodes.current = DOMAIN_NODES.map(d => ({
-      x: d.x*c.width, y: d.y*c.height,
-      baseX: d.x*c.width, baseY: d.y*c.height,
-      r: 9 + Math.random()*4,
+    nds.current = DOMAIN_NODES.map(d => ({
+      x: d.x * c.width, y: d.y * c.height,
+      baseX: d.x * c.width, baseY: d.y * c.height,
+      r: 8 + Math.random() * 3,
       color: d.color, label: d.label,
-      phase: Math.random()*Math.PI*2,
+      phase: Math.random() * Math.PI * 2,
     }));
 
-    const spawnInterval = setInterval(() => {
-      const ei = Math.floor(Math.random()*EDGES.length);
-      const [a,b] = EDGES[ei];
-      pulses.current.push({ edge:[a,b], t:0, speed: 0.003+Math.random()*0.003, color: nodes.current[a]?.color??'#fff' });
-    }, 650);
+    const spawn = setInterval(() => {
+      const ei = Math.floor(Math.random() * EDGES.length);
+      const [a, b] = EDGES[ei];
+      pls.current.push({ edge:[a,b], t:0, speed:0.003+Math.random()*0.003, color:nds.current[a]?.color??'#fff' });
+    }, 700);
 
     const draw = () => {
-      const W=c.width, H=c.height;
-      ctx.clearRect(0,0,W,H);
-      const ns = nodes.current;
-      ns.forEach(n => { n.phase+=0.007; n.x=n.baseX+Math.sin(n.phase)*14; n.y=n.baseY+Math.cos(n.phase*.8)*10; });
+      const W = c.width, H = c.height;
+      ctx.clearRect(0, 0, W, H);
+      const ns = nds.current;
+
+      ns.forEach(n => {
+        n.phase += 0.007;
+        n.x = n.baseX + Math.sin(n.phase) * 12;
+        n.y = n.baseY + Math.cos(n.phase * .8) * 8;
+      });
 
       // Edges
       EDGES.forEach(([a,b]) => {
-        const na=ns[a],nb=ns[b]; if(!na||!nb) return;
-        const g=ctx.createLinearGradient(na.x,na.y,nb.x,nb.y);
-        g.addColorStop(0,na.color+'40'); g.addColorStop(1,nb.color+'40');
+        const na=ns[a], nb=ns[b]; if (!na||!nb) return;
+        const g = ctx.createLinearGradient(na.x,na.y,nb.x,nb.y);
+        g.addColorStop(0, na.color+'38'); g.addColorStop(1, nb.color+'38');
         ctx.beginPath(); ctx.moveTo(na.x,na.y); ctx.lineTo(nb.x,nb.y);
         ctx.strokeStyle=g; ctx.lineWidth=1; ctx.stroke();
       });
 
       // Pulses
-      pulses.current = pulses.current.filter(p=>p.t<=1);
-      pulses.current.forEach(p => {
-        p.t+=p.speed;
-        const [a,b]=p.edge; const na=ns[a],nb=ns[b]; if(!na||!nb) return;
+      pls.current = pls.current.filter(p => p.t <= 1);
+      pls.current.forEach(p => {
+        p.t += p.speed;
+        const [a,b]=p.edge; const na=ns[a],nb=ns[b]; if (!na||!nb) return;
         const px=na.x+(nb.x-na.x)*p.t, py=na.y+(nb.y-na.y)*p.t;
         const al=Math.sin(p.t*Math.PI);
         const h=Math.round(al*255).toString(16).padStart(2,'0');
-        const h2=Math.round(al*60).toString(16).padStart(2,'0');
-        ctx.beginPath(); ctx.arc(px,py,3.5,0,Math.PI*2); ctx.fillStyle=p.color+h; ctx.fill();
-        ctx.beginPath(); ctx.arc(px,py,8,0,Math.PI*2); ctx.fillStyle=p.color+h2; ctx.fill();
+        const h2=Math.round(al*55).toString(16).padStart(2,'0');
+        ctx.beginPath(); ctx.arc(px,py,3,0,Math.PI*2); ctx.fillStyle=p.color+h; ctx.fill();
+        ctx.beginPath(); ctx.arc(px,py,7,0,Math.PI*2); ctx.fillStyle=p.color+h2; ctx.fill();
       });
 
       // Nodes
       ns.forEach(n => {
-        const ga=0.10+Math.sin(n.phase*1.4)*0.05;
-        const grd=ctx.createRadialGradient(n.x,n.y,n.r,n.x,n.y,n.r*4.5);
-        grd.addColorStop(0,n.color+Math.round(ga*255).toString(16).padStart(2,'0'));
-        grd.addColorStop(1,n.color+'00');
-        ctx.beginPath(); ctx.arc(n.x,n.y,n.r*4.5,0,Math.PI*2); ctx.fillStyle=grd; ctx.fill();
-        ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2); ctx.fillStyle=n.color+'dd'; ctx.fill();
-        ctx.beginPath(); ctx.arc(n.x-n.r*.3,n.y-n.r*.3,n.r*.35,0,Math.PI*2); ctx.fillStyle='#ffffff22'; ctx.fill();
-        ctx.font='600 10px "DM Sans",system-ui'; ctx.textAlign='center'; ctx.fillStyle='#ffffff80';
-        ctx.fillText(n.label,n.x,n.y+n.r+15);
+        const ga = 0.09 + Math.sin(n.phase*1.4)*0.04;
+        const grd = ctx.createRadialGradient(n.x,n.y,n.r,n.x,n.y,n.r*3);
+        grd.addColorStop(0, n.color+Math.round(ga*255).toString(16).padStart(2,'0'));
+        grd.addColorStop(1, n.color+'00');
+        ctx.beginPath(); ctx.arc(n.x,n.y,n.r*3,0,Math.PI*2); ctx.fillStyle=grd; ctx.fill();
+        ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2); ctx.fillStyle=n.color+'cc'; ctx.fill();
+        ctx.beginPath(); ctx.arc(n.x-n.r*.3,n.y-n.r*.3,n.r*.32,0,Math.PI*2); ctx.fillStyle='#ffffff20'; ctx.fill();
+        ctx.font='600 9px "DM Sans",system-ui'; ctx.textAlign='center'; ctx.fillStyle='#ffffff70';
+        ctx.fillText(n.label, n.x, n.y+n.r+13);
       });
 
       raf.current = requestAnimationFrame(draw);
     };
     raf.current = requestAnimationFrame(draw);
-    return () => { cancelAnimationFrame(raf.current); clearInterval(spawnInterval); window.removeEventListener('resize',resize); };
+    return () => { cancelAnimationFrame(raf.current); clearInterval(spawn); window.removeEventListener('resize', resize); };
   }, []);
 
-  return <canvas ref={cvs} className="absolute inset-0 w-full h-full" style={{opacity:0.92}} />;
+  return <canvas ref={cvs} className="absolute inset-0 w-full h-full" style={{opacity:0.9}}/>;
 }
 
+// ─── Animated counter (hydration-safe) ───────────────────────────────────────
 function AnimatedCounter({ target, suffix='' }: { target:number; suffix?:string }) {
-  // Start at `target` so server HTML matches initial client render (no hydration mismatch).
-  // After mount, reset to 0 and animate up when scrolled into view.
   const [count, setCount] = useState(target);
   const [ready, setReady] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setCount(0);
-    setReady(true);
-  }, []);
+  useEffect(() => { setCount(0); setReady(true); }, []);
 
   useEffect(() => {
     if (!ready) return;
@@ -120,10 +127,10 @@ function AnimatedCounter({ target, suffix='' }: { target:number; suffix?:string 
     const obs = new IntersectionObserver(([e]) => {
       if (!e.isIntersecting) return; obs.disconnect();
       let s = 0;
-      const step = (ts: number) => {
+      const step = (ts:number) => {
         if (!s) s = ts;
-        const p = Math.min((ts - s) / 1400, 1);
-        setCount(Math.round((1 - Math.pow(1 - p, 3)) * target));
+        const p = Math.min((ts-s)/1400, 1);
+        setCount(Math.round((1-Math.pow(1-p,3))*target));
         if (p < 1) requestAnimationFrame(step);
       };
       requestAnimationFrame(step);
@@ -135,22 +142,22 @@ function AnimatedCounter({ target, suffix='' }: { target:number; suffix?:string 
   return <div ref={ref}>{count}{suffix}</div>;
 }
 
-// ── Logo ──────────────────────────────────────────────────────────────────────
+// ─── Logo ─────────────────────────────────────────────────────────────────────
 function Logo({ size=32, showText=true }: { size?:number; showText?:boolean }) {
   const uid = size.toString();
   return (
     <div className="flex items-center gap-2.5 select-none">
-      <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
         <path d="M20 2L36 11V29L20 38L4 29V11L20 2Z" fill={`url(#lg${uid})`} opacity="0.12"/>
         <path d="M20 2L36 11V29L20 38L4 29V11L20 2Z" stroke={`url(#ls${uid})`} strokeWidth="1.5" fill="none"/>
         <circle cx="20" cy="20" r="3" fill={`url(#lg${uid})`}/>
         <line x1="20" y1="17" x2="20" y2="5.5"  stroke="#38bdf8" strokeWidth="1.3" strokeLinecap="round" opacity="0.85"/>
         <line x1="22.6" y1="21.5" x2="32.5" y2="27.5" stroke="#818cf8" strokeWidth="1.3" strokeLinecap="round" opacity="0.85"/>
         <line x1="17.4" y1="21.5" x2="7.5"  y2="27.5" stroke="#34d399" strokeWidth="1.3" strokeLinecap="round" opacity="0.85"/>
-        <circle cx="20"   cy="5"    r="2.2" fill="#38bdf8" opacity="0.95"/>
-        <circle cx="33"   cy="28"   r="2.2" fill="#818cf8" opacity="0.95"/>
-        <circle cx="7"    cy="28"   r="2.2" fill="#34d399" opacity="0.95"/>
-        <circle cx="20"   cy="20"   r="7" stroke={`url(#ls${uid})`} strokeWidth="0.7" fill="none" opacity="0.4" strokeDasharray="2.5 3"/>
+        <circle cx="20" cy="5"  r="2.2" fill="#38bdf8" opacity="0.95"/>
+        <circle cx="33" cy="28" r="2.2" fill="#818cf8" opacity="0.95"/>
+        <circle cx="7"  cy="28" r="2.2" fill="#34d399" opacity="0.95"/>
+        <circle cx="20" cy="20" r="7" stroke={`url(#ls${uid})`} strokeWidth="0.7" fill="none" opacity="0.4" strokeDasharray="2.5 3"/>
         <defs>
           <linearGradient id={`lg${uid}`} x1="4" y1="2" x2="36" y2="38" gradientUnits="userSpaceOnUse">
             <stop stopColor="#38bdf8"/><stop offset="0.5" stopColor="#818cf8"/><stop offset="1" stopColor="#34d399"/>
@@ -165,14 +172,13 @@ function Logo({ size=32, showText=true }: { size?:number; showText?:boolean }) {
           <div className="font-display font-bold tracking-tight text-white" style={{fontSize:size*0.46,letterSpacing:'-0.02em'}}>
             ai<span style={{background:'linear-gradient(90deg,#38bdf8,#818cf8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>transformation</span>
           </div>
-
         </div>
       )}
     </div>
   );
 }
 
-// ── Deliverable SVG icons ────────────────────────────────────────────────────
+// ─── Deliverable icons ────────────────────────────────────────────────────────
 const DI = {
   score:(
     <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
@@ -239,6 +245,7 @@ const DI = {
   ),
 };
 
+// ─── Data ─────────────────────────────────────────────────────────────────────
 const DELIVERABLES = [
   { key:'score',   icon:DI.score,   color:'#38bdf8', title:'Overall Maturity Score',  desc:'A weighted 0–100 composite with domain breakdown, confidence rating, and maturity level classification — board-ready at a glance.' },
   { key:'radar',   icon:DI.radar,   color:'#34d399', title:'Domain Radar Chart',      desc:'Visual radar mapping relative strength and weakness across all 6 capability domains — instantly reveals where to concentrate investment.' },
@@ -279,326 +286,409 @@ const RISKS = [
   { flag:'MATURITY_CAPPED',    color:'#eab308', desc:'Maturity hard-capped at AI Structured despite high overall score due to critical domain gaps.' },
 ];
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
   return (
-    <>
-<div className="bg-[#080d1a] text-white min-h-screen overflow-x-hidden">
+    <div className="bg-[#080d1a] text-white min-h-screen overflow-x-hidden">
 
-        {/* ═══ HERO ═══════════════════════════════════════════════════════════ */}
-        <section className="relative min-h-[calc(100vh-60px)] flex flex-col hero-mask overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#0b1028] via-[#080d1a] to-[#030608]"/>
-          <div className="absolute inset-0 bg-grid"/>
+      {/* ══ HERO ══════════════════════════════════════════════════════════════ */}
+      <section className="relative min-h-[calc(100vh-60px)] flex flex-col hero-mask overflow-hidden">
 
-          {/* Edge accent halos to complement canvas nodes */}
-          <div className="absolute top-0 inset-x-0 h-48 bg-gradient-to-b from-blue-600/10 to-transparent pointer-events-none"/>
-          <div className="absolute bottom-0 inset-x-0 h-48 bg-gradient-to-t from-teal-600/8 to-transparent pointer-events-none"/>
-          <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-red-600/6 to-transparent pointer-events-none"/>
-          <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-violet-600/8 to-transparent pointer-events-none"/>
+        {/* Base background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0b1028] via-[#080d1a] to-[#030608]"/>
+        <div className="absolute inset-0 bg-grid"/>
 
-          {mounted && <div className="absolute inset-0 z-0"><NeuralCanvas/></div>}
+        {/* ── Mobile background: pure CSS glows, no canvas ─────────────────
+            Shown only on screens < 640px (sm breakpoint).
+            These are blurred orbs positioned at the edges so they never
+            touch the center text column.                                   */}
+        <div className="absolute inset-0 sm:hidden pointer-events-none">
+          {/* top-center — Strategic */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-40 rounded-full blur-[60px] opacity-30"
+            style={{background:'#3b82f6'}}/>
+          {/* bottom-center — UseCase */}
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-40 h-40 rounded-full blur-[60px] opacity-25"
+            style={{background:'#10b981'}}/>
+          {/* far left edge — Security (tiny, kept at edge) */}
+          <div className="absolute top-1/3 -left-8 w-28 h-28 rounded-full blur-[50px] opacity-20"
+            style={{background:'#ef4444'}}/>
+          {/* far right edge — Technology (tiny, kept at edge) */}
+          <div className="absolute top-1/3 -right-8 w-28 h-28 rounded-full blur-[50px] opacity-20"
+            style={{background:'#8b5cf6'}}/>
+        </div>
 
-          {/* Content — z-10 renders ABOVE the ::after vignette pseudo-element (z-1) */}
-          <div className="relative z-10 flex flex-col items-center justify-center flex-1 px-6 py-20 text-center">
+        {/* ── Desktop background: full animated canvas ─────────────────────
+            Hidden on mobile via hidden sm:block wrapper.                   */}
+        {mounted && (
+          <div className="absolute inset-0 z-0 hidden sm:block">
+            <NeuralCanvas/>
+          </div>
+        )}
 
-            <div className="fu d1 inline-flex items-center gap-2.5 mb-8
-              bg-white/[0.07] border border-white/[0.12] backdrop-blur-md
-              rounded-full px-5 py-2 text-xs font-semibold tracking-widest uppercase text-sky-300">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 pdot"/>
-              Enterprise AI Transformation Framework · v2.0
-            </div>
+        {/* Edge accent halos (desktop) */}
+        <div className="absolute top-0 inset-x-0 h-48 bg-gradient-to-b from-blue-600/8 to-transparent pointer-events-none hidden sm:block"/>
+        <div className="absolute bottom-0 inset-x-0 h-48 bg-gradient-to-t from-teal-600/6 to-transparent pointer-events-none hidden sm:block"/>
 
-            <h1 className="font-display fu d2
-              text-5xl sm:text-6xl md:text-7xl lg:text-[5.5rem]
-              font-bold leading-[1.04] tracking-tight mb-6 max-w-4xl">
-              <span className="text-white">Is Your Organization</span>
-              <br/><span className="text-grad">AI-Ready?</span>
-            </h1>
+        {/* ── Hero content ─────────────────────────────────────────────── */}
+        <div className="relative z-10 flex flex-col items-center justify-center flex-1
+          px-5 sm:px-6 pt-10 pb-8 sm:py-20 text-center">
 
-            <p className="fu d3 text-lg sm:text-xl text-slate-300 max-w-2xl mb-4 leading-relaxed">
-              A rigorous, evidence-based assessment across{' '}
-              <span className="text-white font-semibold">6 capability domains</span> and{' '}
-              <span className="text-white font-semibold">72 weighted questions</span> — giving leaders
-              a precise maturity score, risk flags, and a prioritized transformation roadmap.
-            </p>
-            <p className="fu d3 text-sm text-slate-500 mb-10">
-              Trusted by CIOs, CDOs, and AI Strategy teams to benchmark readiness and drive action.
-            </p>
-
-            <div className="fu d4 flex gap-4 flex-wrap justify-center">
-              <Link href="/assessment"
-                className="btn-sh inline-flex items-center gap-2.5 text-white font-bold
-                  px-9 py-4 rounded-xl text-base shadow-lg shadow-blue-500/20
-                  transition-all hover:scale-105 hover:shadow-blue-500/35">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                Begin Assessment
-              </Link>
-              <a href="#how-it-works"
-                className="inline-flex items-center gap-2.5 bg-white/[0.07] hover:bg-white/[0.13]
-                  border border-white/[0.15] hover:border-white/30 text-white/80 hover:text-white
-                  font-semibold px-9 py-4 rounded-xl text-base transition-all backdrop-blur-sm">
-                How It Works
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="bounce">
-                  <path d="M12 5v14M5 12l7 7 7-7"/>
-                </svg>
-              </a>
-            </div>
-
-            <div className="fu d5 mt-16 grid grid-cols-2 sm:grid-cols-4 gap-x-10 gap-y-6">
-              {[{val:72,suffix:'',label:'Assessment Questions'},{val:6,suffix:'',label:'Capability Domains'},{val:5,suffix:'',label:'Maturity Levels'},{val:10,suffix:'min',label:'Estimated Time'}]
-                .map(({val,suffix,label}) => (
-                  <div key={label} className="text-center">
-                    <div className="font-display text-4xl sm:text-5xl font-bold text-grad leading-none mb-1">
-                      <AnimatedCounter target={val} suffix={suffix}/>
-                    </div>
-                    <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold mt-2">{label}</div>
-                  </div>
-                ))}
-            </div>
+          {/* Badge */}
+          <div className="fu d1 inline-flex items-center gap-2 mb-6 sm:mb-8
+            bg-white/[0.08] border border-white/[0.14] backdrop-blur-md
+            rounded-full px-4 py-2 text-[10px] sm:text-xs font-semibold
+            tracking-widest uppercase text-sky-300
+            max-w-[260px] sm:max-w-none text-center leading-snug">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 pdot flex-shrink-0"/>
+            Enterprise AI Transformation Framework · v2.0
           </div>
 
-          <div className="relative z-10 flex justify-center pb-8">
-            <div className="flex flex-col items-center gap-1 text-white/20 text-[10px] tracking-widest uppercase">
-              <span>Scroll</span>
-              <svg className="w-3.5 h-3.5 bounce" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
-            </div>
-          </div>
-        </section>
+          {/* Headline — tighter on mobile */}
+          <h1 className="font-display fu d2 font-bold tracking-tight
+            text-[2.4rem] leading-[1.08]
+            sm:text-5xl sm:leading-[1.06]
+            md:text-6xl lg:text-7xl xl:text-[5.5rem]
+            mb-5 max-w-xs sm:max-w-2xl md:max-w-4xl">
+            <span className="text-white">Is Your Organization</span>
+            <br/>
+            <span className="text-grad">AI-Ready?</span>
+          </h1>
 
-        {/* ═══ 6 DOMAINS ══════════════════════════════════════════════════════ */}
-        <section className="py-24 px-6 bg-[#090e21] border-t border-white/[0.06]">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-16">
-              <p className="text-sky-400 text-xs font-bold tracking-widest uppercase mb-4">What We Measure</p>
-              <h2 className="font-display text-4xl sm:text-5xl font-bold text-white mb-4">Six Domains of AI Readiness</h2>
-              <p className="text-slate-400 max-w-xl mx-auto text-base leading-relaxed">
-                Each domain is assessed through 12 weighted questions. Domain scores combine using calibrated weights to produce your overall score.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {DOMAINS.map(({label,color,bg,icon,w,desc}) => (
-                <div key={label}
-                  className="rounded-2xl p-6 border transition-all duration-200 hover:-translate-y-1 cursor-default"
-                  style={{background:bg+'bb',borderColor:color+'28'}}
-                  onMouseEnter={e=>(e.currentTarget.style.boxShadow=`0 8px 32px -8px ${color}50`)}
-                  onMouseLeave={e=>(e.currentTarget.style.boxShadow='none')}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center font-display text-base font-bold"
-                      style={{background:color+'20',border:`1px solid ${color}40`,color}}>
-                      {icon}
-                    </div>
-                    <div>
-                      <div className="font-display font-bold text-white text-sm">{label}</div>
-                      <div className="text-xs mt-0.5 font-semibold" style={{color}}>12 questions · {w} weight</div>
-                    </div>
-                  </div>
-                  <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+          {/* Body copy — concise on mobile */}
+          <p className="fu d3 text-slate-300 leading-relaxed mb-4
+            text-[0.95rem] max-w-[320px]
+            sm:text-lg sm:max-w-xl
+            md:text-xl md:max-w-2xl">
+            A rigorous, evidence-based assessment across{' '}
+            <span className="text-white font-semibold">6 capability domains</span>{' '}
+            and{' '}
+            <span className="text-white font-semibold">72 weighted questions</span>
+            {' '}— giving leaders a precise maturity score, risk flags, and a prioritized transformation roadmap.
+          </p>
 
-        {/* ═══ HOW IT WORKS ═══════════════════════════════════════════════════ */}
-        <section id="how-it-works" className="py-24 px-6 bg-[#06091a]">
-          <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-16">
-              <p className="text-emerald-400 text-xs font-bold tracking-widest uppercase mb-4">The Process</p>
-              <h2 className="font-display text-4xl sm:text-5xl font-bold text-white">From Zero to Roadmap in 4 Steps</h2>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {HOW.map(({step,c,title,desc}) => (
-                <div key={step}
-                  className="p-6 rounded-2xl border border-white/[0.07] bg-white/[0.025]
-                    hover:bg-white/[0.055] hover:border-white/[0.12] transition-all">
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center
-                      font-display font-bold text-sm"
-                      style={{background:c+'20',border:`1px solid ${c}40`,color:c}}>
-                      {step}
-                    </div>
-                    <div>
-                      <h3 className="font-display font-bold text-white text-base mb-2">{title}</h3>
-                      <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+          {/* Trusted by — desktop only */}
+          <p className="fu d3 text-sm text-slate-500 mb-8 hidden sm:block">
+            Trusted by CIOs, CDOs, and AI Strategy teams to benchmark readiness and drive action.
+          </p>
+          {/* Spacer on mobile */}
+          <div className="h-5 sm:hidden"/>
 
-        {/* ═══ MATURITY SPECTRUM ══════════════════════════════════════════════ */}
-        <section className="py-24 px-6 bg-[#080c1e] border-t border-white/[0.05]">
-          <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-16">
-              <p className="text-violet-400 text-xs font-bold tracking-widest uppercase mb-4">Scoring Framework</p>
-              <h2 className="font-display text-4xl sm:text-5xl font-bold text-white mb-4">The AI Maturity Spectrum</h2>
-              <p className="text-slate-400 max-w-lg mx-auto text-base">Your 0–100 score maps to one of five levels, each with distinct strategic implications.</p>
-            </div>
-            <div className="space-y-3">
-              {MATURITY.map(({level,range,color,desc},i) => (
-                <div key={level}
-                  className="flex items-center gap-5 p-5 rounded-2xl border border-white/[0.05]
-                    bg-white/[0.02] hover:bg-white/[0.05] transition-all group cursor-default">
-                  <div className="flex-shrink-0 w-[70px] text-center">
-                    <div className="text-xs font-bold px-2 py-1.5 rounded-lg font-mono"
-                      style={{background:color+'18',color,border:`1px solid ${color}28`}}>
-                      {range}
-                    </div>
-                  </div>
-                  <div className="flex-shrink-0 w-0.5 self-stretch rounded-full my-1"
-                    style={{background:`linear-gradient(to bottom,${color}00,${color}bb,${color}00)`}}/>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-display font-bold text-white text-sm mb-1 group-hover:text-sky-100 transition-colors">{level}</div>
-                    <div className="text-slate-500 text-sm">{desc}</div>
-                  </div>
-                  <div className="flex-shrink-0 font-display text-5xl font-bold leading-none
-                    opacity-[0.07] group-hover:opacity-[0.16] transition-opacity select-none" style={{color}}>
-                    {i+1}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ═══ RISK FLAGS ═════════════════════════════════════════════════════ */}
-        <section className="py-24 px-6 bg-[#07091a]">
-          <div className="max-w-5xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-              <div>
-                <p className="text-red-400 text-xs font-bold tracking-widest uppercase mb-4">Intelligent Detection</p>
-                <h2 className="font-display text-4xl sm:text-5xl font-bold text-white mb-6 leading-tight">
-                  Automated Risk<br/><span className="text-grad">Flag Detection</span>
-                </h2>
-                <p className="text-slate-400 text-base leading-relaxed mb-8">
-                  Beyond the score, our engine identifies systemic risk patterns invisible to standard scoring —
-                  even in otherwise high-scoring organizations. Risk flags can permanently cap your maturity classification.
-                </p>
-                <Link href="/assessment" className="inline-flex items-center gap-2 text-sky-400 hover:text-sky-300 font-semibold text-sm transition-colors group">
-                  Run your assessment to detect risks
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-                    className="group-hover:translate-x-1 transition-transform"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </Link>
-              </div>
-              <div className="space-y-3">
-                {RISKS.map(({flag,color,desc}) => (
-                  <div key={flag} className="flex gap-4 items-start p-4 rounded-xl border bg-white/[0.02] hover:bg-white/[0.05] transition-all"
-                    style={{borderColor:color+'28'}}>
-                    <div className="flex-shrink-0 w-2.5 h-2.5 rounded-full mt-1.5"
-                      style={{background:color,boxShadow:`0 0 10px ${color}80`}}/>
-                    <div>
-                      <div className="font-mono text-xs font-bold mb-1.5" style={{color}}>{flag}</div>
-                      <div className="text-slate-400 text-sm leading-relaxed">{desc}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ═══ DELIVERABLES — premium redesign ════════════════════════════════ */}
-        <section className="py-24 px-6 bg-[#060918] border-t border-white/[0.05]">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-16">
-              <p className="text-amber-400 text-xs font-bold tracking-widest uppercase mb-4">Your Deliverables</p>
-              <h2 className="font-display text-4xl sm:text-5xl font-bold text-white mb-4">What You Get at the End</h2>
-              <p className="text-slate-400 max-w-xl mx-auto text-base leading-relaxed">
-                Every completed assessment generates a complete suite of actionable intelligence —
-                precision-crafted for executive review and strategic planning.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {DELIVERABLES.map(({key,icon,color,title,desc}) => (
-                <div key={key}
-                  className="deliv-card rounded-2xl p-6 text-left border border-white/[0.08]"
-                  style={{
-                    '--cg': color+'14',
-                    '--cs': color+'35',
-                    background: `linear-gradient(145deg, ${color}0a 0%, rgba(255,255,255,0.02) 100%)`,
-                  } as React.CSSProperties}>
-
-                  {/* Icon container */}
-                  <div className="relative mb-5 inline-block">
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                      style={{
-                        background:`radial-gradient(circle at 30% 30%,${color}28,${color}0a)`,
-                        border:`1px solid ${color}35`,
-                        boxShadow:`0 0 20px -6px ${color}40, inset 0 1px 0 ${color}25`,
-                      }}>
-                      {icon}
-                    </div>
-                    {/* Accent glow dot */}
-                    <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-[#080d1a]"
-                      style={{background:color,boxShadow:`0 0 8px ${color}`}}/>
-                  </div>
-
-                  {/* Colored accent bar + title */}
-                  <div className="flex items-start gap-2.5 mb-3">
-                    <div className="w-0.5 h-5 rounded-full flex-shrink-0 mt-0.5" style={{background:color}}/>
-                    <h3 className="font-display font-bold text-white text-[0.95rem] leading-snug">{title}</h3>
-                  </div>
-
-                  <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
-
-                  {/* Bottom dot-progress accent */}
-                  <div className="mt-5 pt-4 border-t border-white/[0.06] flex items-center gap-2.5">
-                    <div className="flex gap-1">
-                      {[0,1,2,3,4].map(i=>(
-                        <div key={i} className="w-1 h-1 rounded-full" style={{background:color,opacity:0.25+i*0.17}}/>
-                      ))}
-                    </div>
-                    <span className="text-[11px] text-slate-600 font-medium">Included in every assessment</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ═══ FINAL CTA ══════════════════════════════════════════════════════ */}
-        <section className="py-32 px-6 relative overflow-hidden bg-[#050812]">
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-[800px] h-[400px] bg-blue-600/8 rounded-full blur-[120px]"/>
-          </div>
-          <div className="relative z-10 max-w-3xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 text-xs font-bold tracking-widest uppercase
-              text-emerald-400 mb-6 bg-emerald-400/10 border border-emerald-400/20 rounded-full px-5 py-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 pdot"/>
-              Free · No account required · Results in &lt;10 min
-            </div>
-            <h2 className="font-display text-5xl sm:text-6xl md:text-[4.5rem] font-bold text-white mb-6 leading-[1.06]">
-              Start Your<br/><span className="text-grad">AI Transformation</span><br/>Today.
-            </h2>
-            <p className="text-slate-400 text-lg mb-12 leading-relaxed">
-              Join the organizations that have benchmarked their AI readiness and built
-              clear, evidence-based paths to competitive advantage.
-            </p>
+          {/* CTA buttons
+              Mobile: full-width stacked column
+              Desktop: side-by-side auto-width                              */}
+          <div className="fu d4 w-full sm:w-auto flex flex-col sm:flex-row gap-3 px-5 sm:px-0">
             <Link href="/assessment"
-              className="btn-sh inline-flex items-center gap-3 text-white font-bold
-                px-12 py-5 rounded-2xl text-lg shadow-2xl shadow-blue-500/25
-                transition-all hover:scale-105">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              Begin Your Assessment
+              className="btn-sh flex items-center justify-center gap-2.5
+                text-white font-bold text-base rounded-xl
+                px-8 py-4 w-full sm:w-auto
+                shadow-lg shadow-blue-500/20
+                transition-all active:scale-95 sm:hover:scale-105">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" className="flex-shrink-0">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+              Begin Assessment
             </Link>
-            <div className="mt-8 text-slate-600 text-xs">Progress saves automatically · Resume anytime · Export your results</div>
+            <a href="#how-it-works"
+              className="flex items-center justify-center gap-2.5
+                bg-white/[0.08] border border-white/[0.16]
+                text-white/80 font-semibold text-base rounded-xl
+                px-8 py-4 w-full sm:w-auto
+                transition-all backdrop-blur-sm
+                active:scale-95 sm:hover:bg-white/[0.13] sm:hover:border-white/30 sm:hover:text-white">
+              How It Works
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                className="bounce flex-shrink-0">
+                <path d="M12 5v14M5 12l7 7 7-7"/>
+              </svg>
+            </a>
           </div>
-        </section>
 
-        {/* Footer */}
-        <footer className="border-t border-white/[0.06] py-8 px-6 bg-[#040610]">
-          <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-            <Logo size={28}/>
-            <div className="text-slate-600 text-xs">72 questions · 6 domains · 5 maturity levels · Weighted scoring</div>
+          {/* Stats grid */}
+          <div className="fu d5 mt-10 sm:mt-14 grid grid-cols-2 sm:grid-cols-4
+            gap-x-8 gap-y-5 sm:gap-x-12 sm:gap-y-6 w-full max-w-xs sm:max-w-none sm:w-auto">
+            {[
+              {val:72, suffix:'',    label:'Questions'},
+              {val:6,  suffix:'',    label:'Domains'},
+              {val:5,  suffix:'',    label:'Maturity Levels'},
+              {val:10, suffix:'min', label:'Est. Time'},
+            ].map(({val,suffix,label}) => (
+              <div key={label} className="text-center">
+                <div className="font-display font-bold text-grad leading-none mb-1
+                  text-3xl sm:text-4xl md:text-5xl">
+                  <AnimatedCounter target={val} suffix={suffix}/>
+                </div>
+                <div className="text-[10px] sm:text-xs text-slate-500 uppercase tracking-widest font-semibold mt-1.5">
+                  {label}
+                </div>
+              </div>
+            ))}
           </div>
-        </footer>
+        </div>
 
-      </div>
-    </>
+        {/* Scroll cue */}
+        <div className="relative z-10 flex justify-center pb-6 sm:pb-8">
+          <div className="flex flex-col items-center gap-1 text-white/20 text-[10px] tracking-widest uppercase">
+            <span>Scroll</span>
+            <svg className="w-3.5 h-3.5 bounce" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 5v14M5 12l7 7 7-7"/>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ 6 DOMAINS ════════════════════════════════════════════════════════ */}
+      <section className="py-16 sm:py-24 px-5 sm:px-6 bg-[#090e21] border-t border-white/[0.06]">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-10 sm:mb-16">
+            <p className="text-sky-400 text-xs font-bold tracking-widest uppercase mb-3 sm:mb-4">What We Measure</p>
+            <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-3 sm:mb-4">
+              Six Domains of AI Readiness
+            </h2>
+            <p className="text-slate-400 max-w-xl mx-auto text-sm sm:text-base leading-relaxed">
+              Each domain is assessed through 12 weighted questions. Domain scores combine using calibrated weights to produce your overall score.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            {DOMAINS.map(({label,color,bg,icon,w,desc}) => (
+              <div key={label}
+                className="rounded-2xl p-5 sm:p-6 border transition-all duration-200 sm:hover:-translate-y-1 cursor-default"
+                style={{background:bg+'bb', borderColor:color+'28'}}
+                onMouseEnter={e=>(e.currentTarget.style.boxShadow=`0 8px 32px -8px ${color}50`)}
+                onMouseLeave={e=>(e.currentTarget.style.boxShadow='none')}>
+                <div className="flex items-center gap-3 mb-3 sm:mb-4">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-display text-base font-bold"
+                    style={{background:color+'20', border:`1px solid ${color}40`, color}}>
+                    {icon}
+                  </div>
+                  <div>
+                    <div className="font-display font-bold text-white text-sm">{label}</div>
+                    <div className="text-xs mt-0.5 font-semibold" style={{color}}>12 questions · {w} weight</div>
+                  </div>
+                </div>
+                <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══ HOW IT WORKS ═════════════════════════════════════════════════════ */}
+      <section id="how-it-works" className="py-16 sm:py-24 px-5 sm:px-6 bg-[#06091a]">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-10 sm:mb-16">
+            <p className="text-emerald-400 text-xs font-bold tracking-widest uppercase mb-3 sm:mb-4">The Process</p>
+            <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-white">
+              From Zero to Roadmap in 4 Steps
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5">
+            {HOW.map(({step,c,title,desc}) => (
+              <div key={step}
+                className="p-5 sm:p-6 rounded-2xl border border-white/[0.07] bg-white/[0.025]
+                  sm:hover:bg-white/[0.055] sm:hover:border-white/[0.12] transition-all">
+                <div className="flex items-start gap-4">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex-shrink-0 flex items-center justify-center
+                    font-display font-bold text-sm"
+                    style={{background:c+'20', border:`1px solid ${c}40`, color:c}}>
+                    {step}
+                  </div>
+                  <div>
+                    <h3 className="font-display font-bold text-white text-sm sm:text-base mb-1.5 sm:mb-2">{title}</h3>
+                    <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══ MATURITY SPECTRUM ════════════════════════════════════════════════ */}
+      <section className="py-16 sm:py-24 px-5 sm:px-6 bg-[#080c1e] border-t border-white/[0.05]">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-10 sm:mb-16">
+            <p className="text-violet-400 text-xs font-bold tracking-widest uppercase mb-3 sm:mb-4">Scoring Framework</p>
+            <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-3 sm:mb-4">
+              The AI Maturity Spectrum
+            </h2>
+            <p className="text-slate-400 max-w-lg mx-auto text-sm sm:text-base">
+              Your 0–100 score maps to one of five levels, each with distinct strategic implications.
+            </p>
+          </div>
+          <div className="space-y-2 sm:space-y-3">
+            {MATURITY.map(({level,range,color,desc},i) => (
+              <div key={level}
+                className="flex items-center gap-3 sm:gap-5 p-4 sm:p-5 rounded-2xl border border-white/[0.05]
+                  bg-white/[0.02] sm:hover:bg-white/[0.05] transition-all group cursor-default">
+                <div className="flex-shrink-0 w-[60px] sm:w-[70px] text-center">
+                  <div className="text-xs font-bold px-1.5 sm:px-2 py-1.5 rounded-lg font-mono"
+                    style={{background:color+'18', color, border:`1px solid ${color}28`}}>
+                    {range}
+                  </div>
+                </div>
+                <div className="flex-shrink-0 w-0.5 self-stretch rounded-full my-1"
+                  style={{background:`linear-gradient(to bottom,${color}00,${color}bb,${color}00)`}}/>
+                <div className="flex-1 min-w-0">
+                  <div className="font-display font-bold text-white text-xs sm:text-sm mb-0.5 sm:mb-1
+                    sm:group-hover:text-sky-100 transition-colors">
+                    {level}
+                  </div>
+                  <div className="text-slate-500 text-xs sm:text-sm leading-snug">{desc}</div>
+                </div>
+                <div className="flex-shrink-0 font-display text-3xl sm:text-5xl font-bold leading-none
+                  opacity-[0.07] sm:group-hover:opacity-[0.16] transition-opacity select-none" style={{color}}>
+                  {i+1}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══ RISK FLAGS ═══════════════════════════════════════════════════════ */}
+      <section className="py-16 sm:py-24 px-5 sm:px-6 bg-[#07091a]">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 sm:gap-16 items-center">
+            <div>
+              <p className="text-red-400 text-xs font-bold tracking-widest uppercase mb-3 sm:mb-4">Intelligent Detection</p>
+              <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 sm:mb-6 leading-tight">
+                Automated Risk<br/><span className="text-grad">Flag Detection</span>
+              </h2>
+              <p className="text-slate-400 text-sm sm:text-base leading-relaxed mb-6 sm:mb-8">
+                Beyond the score, our engine identifies systemic risk patterns invisible to standard scoring —
+                even in otherwise high-scoring organizations. Risk flags can permanently cap your maturity classification.
+              </p>
+              <Link href="/assessment"
+                className="inline-flex items-center gap-2 text-sky-400 sm:hover:text-sky-300 font-semibold text-sm transition-colors group">
+                Run your assessment to detect risks
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                  className="sm:group-hover:translate-x-1 transition-transform">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </Link>
+            </div>
+            <div className="space-y-2 sm:space-y-3">
+              {RISKS.map(({flag,color,desc}) => (
+                <div key={flag}
+                  className="flex gap-3 sm:gap-4 items-start p-3.5 sm:p-4 rounded-xl border
+                    bg-white/[0.02] sm:hover:bg-white/[0.05] transition-all"
+                  style={{borderColor:color+'28'}}>
+                  <div className="flex-shrink-0 w-2.5 h-2.5 rounded-full mt-1.5"
+                    style={{background:color, boxShadow:`0 0 8px ${color}80`}}/>
+                  <div>
+                    <div className="font-mono text-xs font-bold mb-1" style={{color}}>{flag}</div>
+                    <div className="text-slate-400 text-xs sm:text-sm leading-relaxed">{desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ DELIVERABLES ═════════════════════════════════════════════════════ */}
+      <section className="py-16 sm:py-24 px-5 sm:px-6 bg-[#060918] border-t border-white/[0.05]">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-10 sm:mb-16">
+            <p className="text-amber-400 text-xs font-bold tracking-widest uppercase mb-3 sm:mb-4">Your Deliverables</p>
+            <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-3 sm:mb-4">
+              What You Get at the End
+            </h2>
+            <p className="text-slate-400 max-w-xl mx-auto text-sm sm:text-base leading-relaxed">
+              Every completed assessment generates a complete suite of actionable intelligence —
+              precision-crafted for executive review and strategic planning.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            {DELIVERABLES.map(({key,icon,color,title,desc}) => (
+              <div key={key}
+                className="deliv-card rounded-2xl p-5 sm:p-6 text-left border border-white/[0.08]"
+                style={{
+                  '--cg': color+'14',
+                  '--cs': color+'35',
+                  background:`linear-gradient(145deg,${color}0a 0%,rgba(255,255,255,0.02) 100%)`,
+                } as React.CSSProperties}>
+                <div className="relative mb-4 sm:mb-5 inline-block">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center"
+                    style={{
+                      background:`radial-gradient(circle at 30% 30%,${color}28,${color}0a)`,
+                      border:`1px solid ${color}35`,
+                      boxShadow:`0 0 20px -6px ${color}40, inset 0 1px 0 ${color}25`,
+                    }}>
+                    {icon}
+                  </div>
+                  <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-[#080d1a]"
+                    style={{background:color, boxShadow:`0 0 8px ${color}`}}/>
+                </div>
+                <div className="flex items-start gap-2.5 mb-2.5 sm:mb-3">
+                  <div className="w-0.5 h-5 rounded-full flex-shrink-0 mt-0.5" style={{background:color}}/>
+                  <h3 className="font-display font-bold text-white text-sm sm:text-[0.95rem] leading-snug">{title}</h3>
+                </div>
+                <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">{desc}</p>
+                <div className="mt-4 sm:mt-5 pt-3 sm:pt-4 border-t border-white/[0.06] flex items-center gap-2.5">
+                  <div className="flex gap-1">
+                    {[0,1,2,3,4].map(i=>(
+                      <div key={i} className="w-1 h-1 rounded-full" style={{background:color, opacity:0.25+i*0.17}}/>
+                    ))}
+                  </div>
+                  <span className="text-[11px] text-slate-600 font-medium">Included in every assessment</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══ FINAL CTA ════════════════════════════════════════════════════════ */}
+      <section className="py-20 sm:py-32 px-5 sm:px-6 relative overflow-hidden bg-[#050812]">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-[600px] sm:w-[800px] h-[300px] sm:h-[400px] bg-blue-600/8 rounded-full blur-[100px] sm:blur-[120px]"/>
+        </div>
+        <div className="relative z-10 max-w-3xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 text-[10px] sm:text-xs font-bold tracking-widest uppercase
+            text-emerald-400 mb-5 sm:mb-6 bg-emerald-400/10 border border-emerald-400/20 rounded-full px-4 sm:px-5 py-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 pdot"/>
+            Free · No account required · Results in &lt;10 min
+          </div>
+          <h2 className="font-display font-bold text-white leading-[1.06]
+            text-[2.2rem] sm:text-5xl md:text-6xl lg:text-[4.5rem]
+            mb-5 sm:mb-6">
+            Start Your<br/><span className="text-grad">AI Transformation</span><br/>Today.
+          </h2>
+          <p className="text-slate-400 text-base sm:text-lg mb-8 sm:mb-12 leading-relaxed max-w-lg mx-auto">
+            Join the organizations that have benchmarked their AI readiness and built
+            clear, evidence-based paths to competitive advantage.
+          </p>
+          <Link href="/assessment"
+            className="btn-sh inline-flex items-center justify-center gap-3 text-white font-bold
+              text-base sm:text-lg rounded-2xl shadow-2xl shadow-blue-500/25
+              px-8 sm:px-12 py-4 sm:py-5
+              w-full sm:w-auto
+              transition-all active:scale-95 sm:hover:scale-105">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            Begin Your Assessment
+          </Link>
+          <div className="mt-6 sm:mt-8 text-slate-600 text-xs">
+            Progress saves automatically · Resume anytime · Export your results
+          </div>
+        </div>
+      </section>
+
+      {/* ══ FOOTER ═══════════════════════════════════════════════════════════ */}
+      <footer className="border-t border-white/[0.06] py-6 sm:py-8 px-5 sm:px-6 bg-[#040610]">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+          <Logo size={26}/>
+          <div className="text-slate-600 text-xs text-center sm:text-left">
+            72 questions · 6 domains · 5 maturity levels · Weighted scoring
+          </div>
+        </div>
+      </footer>
+
+    </div>
   );
 }
